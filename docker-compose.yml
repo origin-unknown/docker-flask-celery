@@ -1,0 +1,34 @@
+services:
+  flask_app:
+    build:
+      context: ./services/flask_app
+      dockerfile: Dockerfile
+    container_name: flask-app
+    image:
+      flask-app:latest
+    ports:
+      - 5000:5000
+    volumes:
+      - flask_data:/app/instance
+
+  redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - 6379:6379
+    volumes:
+      - redis_data:/data
+
+  worker:
+    build:
+      context: ./services/flask_app
+      dockerfile: Dockerfile
+    command: "celery -A app.celery_app worker --loglevel=info"
+    depends_on:
+      - redis
+    volumes: 
+      - flask_data:/app/instance
+
+volumes:
+  flask_data: {}
+  redis_data: {}
