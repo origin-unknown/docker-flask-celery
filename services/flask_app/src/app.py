@@ -1,10 +1,11 @@
 from celery import Celery, Task
-from celery import shared_task
+from celery import current_task, shared_task
 from celery.result import AsyncResult
 from flask import (
 	Flask, 
 	current_app, 
 	jsonify, 
+	render_template, 
 	request, 
 )
 from flask_sqlalchemy import SQLAlchemy
@@ -13,7 +14,8 @@ from sqlalchemy.orm import (
 	Mapped, 
 )
 from werkzeug.utils import secure_filename
-import os 
+import os, random, time
+
 
 ALLOWED_EXTENSIONS = {'txt',}
 
@@ -59,10 +61,14 @@ with app.app_context():
 		db.create_all()
 	except:
 		pass 
-	
+
+# ---
+
 # @app.route('/')
 # def index():
 # 	return 'Hello World'
+
+# ---
 
 @app.post('/upload')
 def upload():
@@ -100,6 +106,70 @@ def list_words():
 	]
 	return jsonify(data=words_data)
 
+@shared_task
+def process_file(filename: str, filepath: str):
+	with open(filepath) as f: 
+		content = f.read()
+		tokens = content.split()
+
+	words = [Word(
+			token=token, 
+			filepath=filepath, 
+			filename=filename
+		) for token in tokens]
+	db.session.add_all(words)
+	db.session.commit()
+
+# ---
+# Long running task with progress bar.
+
+@app.route('/')
+def index():
+	return render_template('index.html')
+
+@app.post('/start-task')
+def start_task():
+	task = long_task.apply_async()
+	return jsonify({'task_id': task.id}), 202
+
+@app.get('/task-status/<string:task_id>')
+def task_status(task_id):
+	task = long_task.AsyncResult(task_id)
+	if task.state == 'PROGRESS':
+		response = {
+			'state': task.state, 
+			'current': task.info.get('current', 0), 
+			'total': task.info.get('total', 1), 
+		}
+	elif task.state != 'FAILURE':
+		response = {
+			'state': task.state, 
+			'result': task.result, 
+		}
+	else:
+		response = {
+			'state': task.state, 
+			'error': str(task.info), 
+		}
+	return jsonify(response)
+
+@shared_task(ignore_result=False)
+def long_task():
+	total = random.randint(10, 50)
+	for i in range(total):
+		current_task.update_state(
+			state='PROGRESS', 
+			meta={
+				'current': i, 
+				'total': total, 
+			}
+		)
+		time.sleep(random.random())
+	return 'Task completed.'
+
+# ---
+# Simple task with return value.
+
 # @app.post('/add')
 # def start_add() -> dict[str, object]:
 # 	a = request.form.get('a', type=int)
@@ -119,17 +189,3 @@ def list_words():
 # @shared_task(ignore_result=False)
 # def add_together(a: int, b: int) -> int:
 # 	return a + b
-
-@shared_task
-def process_file(filename: str, filepath: str):
-	with open(filepath) as f: 
-		content = f.read()
-		tokens = content.split()
-
-	words = [Word(
-			token=token, 
-			filepath=filepath, 
-			filename=filename
-		) for token in tokens]
-	db.session.add_all(words)
-	db.session.commit()
