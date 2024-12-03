@@ -6,10 +6,15 @@ services:
     container_name: flask-app
     image:
       flask-app:latest
+    depends_on:
+      - redis
+    environment:
+      - CELERY_BROKER_URL=redis://redis
+      - CELERY_RESULT_BACKEND=redis://redis
     ports:
       - 5000:5000
     volumes:
-      - flask_data:/app/instance
+      - flask_data:/app/src/instance
 
   redis:
     image: redis:latest
@@ -23,9 +28,13 @@ services:
     build:
       context: ./services/flask_app
       dockerfile: Dockerfile
-    command: "celery -A app.celery_app worker --loglevel=info"
+    command: "celery --workdir=src -A app.celery_app worker --loglevel=info"
     depends_on:
       - redis
+      - flask_app
+    environment:
+      - CELERY_BROKER_URL=redis://redis
+      - CELERY_RESULT_BACKEND=redis://redis
     volumes: 
       - flask_data:/app/instance
 

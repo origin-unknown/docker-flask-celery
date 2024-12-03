@@ -15,12 +15,11 @@ RUN pip install --no-cache-dir gunicorn
 EXPOSE 5000
 
 # Set the upload folder as a volume
-VOLUME /app/instance
+VOLUME /app/src/instance
 
 # Define environment variable
 
 
 # Run the Flask application when the container launches
 # CMD ["flask", "--app=src/app.py", "run", "--host=0.0.0.0"]
-# CMD ["/usr/local/bin/gunicorn", "--bind", "0.0.0.0:5000", "--workers", "3", "--chdir", "src", "app:app"]
-CMD ["/usr/local/bin/gunicorn", "--bind", "0.0.0.0:5000", "--workers", "3", "app:app"]
+CMD ["/usr/local/bin/gunicorn", "--bind", "0.0.0.0:5000", "--workers", "3", "--chdir", "src", "app:app"]
