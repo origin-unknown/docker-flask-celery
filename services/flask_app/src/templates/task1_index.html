@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Index</title>
+	<style>
+		body {
+			margin: 0;
+		}
+		#progress {
+			width: 100%; 
+			background-color: none; 
+		}
+		#bar {
+			width: 0%; 
+			height: 6px; 
+			background-color: rgb(29, 155, 240);
+			transition: width 0.5s ease-in-out; 
+		}
+		#content {
+			margin: .3rem;
+		}
+	</style>
+</head>
+<body>
+	<div id="progress">
+		<div id="bar"></div>
+	</div>
+
+	<div id="content">
+		<button id="start-task">Start</button>
+		<p id="status"></p>
+	</div>
+
+	<script>
+		(function() {
+
+			const btn = document.getElementById('start-task');
+			btn.addEventListener('click', () => {
+				fetch('/start-task', {method: 'post'})
+					.then(resp => resp.json())
+					.then(data => {
+						const taskId = data.task_id;
+						btn.disabled = true;
+						checkStatus(taskId);
+					});
+			});
+
+			const setProgress = (current, total, reset=true) => {
+				const value = Math.min(Math.max(current/total*100, 0), 100);
+				const elem = document.getElementById('bar');
+				elem.style.transition = (value === 0 ? 'none' : 'width 0.5s ease-in-out');
+				elem.style.width = `${value}%`;
+			};
+
+			const checkStatus = (taskId) => {
+				fetch(`/task-status/${taskId}`)
+					.then(resp => resp.ok && resp.json())
+					.then(data => {
+						if (!data) return;
+
+						if (data.state === 'PROGRESS') {
+							setProgress(data.current, data.total);
+							const status = document.getElementById('status');
+							status.innerText = `${data.current}/${data.total}`;
+							setTimeout(
+								() => checkStatus(taskId), 
+								1000
+							);
+						} else if (data.state === 'SUCCESS') {
+							setProgress(100, 100);
+							btn.disabled = false;
+							const status = document.getElementById('status');
+							status.innerText = `${data.result}`;
+						} else if (data.state === 'FAILURE') {
+							btn.disabled = false;
+							const status = document.getElementById('status');
+							status.innerText = `${data.error}`;
+						} else {
+							btn.disabled = false;
+							const status = document.getElementById('status');
+							status.innerText = `${data.state}`;
+						}
+					});
+			};
+
+		})();
+	</script>
+</body>
+</html>

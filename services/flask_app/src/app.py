@@ -7,12 +7,14 @@ from flask import (
 	jsonify, 
 	render_template, 
 	request, 
+	url_for, 
 )
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import (
 	DeclarativeBase, 
 	Mapped, 
 )
+from sqlalchemy.sql import text
 from werkzeug.utils import secure_filename
 import os, random, time
 
@@ -64,11 +66,9 @@ with app.app_context():
 
 # ---
 
-# @app.route('/')
-# def index():
-# 	return 'Hello World'
-
-# ---
+@app.route('/')
+def index():
+	return render_template('index.html')
 
 @app.post('/upload')
 def upload():
@@ -84,19 +84,48 @@ def upload():
 		filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
 		file.save(filepath)
 
-		process_file.delay(filename, filepath)
+		task = process_file.delay(filename, filepath)
 
-		return jsonify({'message': 'File successfully uploaded.'}), 202
+		# return jsonify({'message': 'File successfully uploaded.'}), 202
+		return jsonify(), 202, { 'Location': url_for('.status', task_id=task.id) }
 	else:
 		return jsonify({'error': 'No text file selected.'}), 400
 
 def allowed_file(filename):
 	return '.' in filename and filename.split('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
+@app.get('/status/<string:task_id>')
+def status(task_id):
+	result = AsyncResult(task_id)
+	if result.ready() and not result.successful():
+		# str(task.info)
+		return jsonify(error='Something went wrong!'), 400
+	return jsonify(
+		meta={ 'ready': result.ready() }, 
+		value=result.result if result.ready() else None
+	), 200
+
 @app.get('/words')
 def list_words():
+	start_row = request.args.get('start', 0, type=int)
+	end_row = request.args.get('end', 100, type=int)
+	sort_field = request.args.get('sortField')
+	sort_order = request.args.get('sortOrder')
+
 	stmt = db.select(Word)
-	words = db.session.execute(stmt).scalars()
+
+	if sort_field is not None:
+		stmt = stmt.order_by(text(f'{sort_field} {sort_order}'))
+
+	# words = db.session.execute(stmt).scalars()
+	words = db.paginate(
+		stmt, 
+		page=1 + start_row/(end_row - start_row), 
+		per_page=end_row - start_row, 
+		error_out=False
+	)
+
 	words_data = [
 		{ 
 			'filename': w.filename, 
@@ -104,9 +133,9 @@ def list_words():
 			'token': w.token, 
 		} for w in words
 	]
-	return jsonify(data=words_data)
+	return jsonify(data=words_data, count=words.total)
 
-@shared_task
+@shared_task(ignore_result=False)
 def process_file(filename: str, filepath: str):
 	with open(filepath) as f: 
 		content = f.read()
@@ -123,9 +152,9 @@ def process_file(filename: str, filepath: str):
 # ---
 # Long running task with progress bar.
 
-@app.route('/')
-def index():
-	return render_template('index.html')
+@app.route('/task1')
+def task1_index():
+	return render_template('task1_index.html')
 
 @app.post('/start-task')
 def start_task():
