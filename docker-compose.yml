@@ -36,7 +36,7 @@ services:
       - CELERY_BROKER_URL=redis://redis
       - CELERY_RESULT_BACKEND=redis://redis
     volumes: 
-      - flask_data:/app/instance
+      - flask_data:/app/src/instance
 
 volumes:
   flask_data: {}
