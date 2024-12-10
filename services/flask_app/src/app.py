@@ -138,7 +138,9 @@ def list_words():
 def process_file(filename: str, filepath: str):
 	with open(filepath) as f: 
 		content = f.read()
-		tokens = content.split()
+		# Possibly use regular expressions to ignore punctuation.
+		# tokens = re.findall(r'\b\w+\b', content)
+		tokens = content.split() 
 	
 	words = [Word(
 			token=token, 
@@ -163,6 +165,7 @@ def start_task():
 @app.get('/task-status/<string:task_id>')
 def task_status(task_id):
 	task = long_task.AsyncResult(task_id)
+	# Maybe use match case here.
 	if task.state == 'PROGRESS':
 		response = {
 			'state': task.state, 
