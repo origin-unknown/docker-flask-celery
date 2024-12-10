@@ -21,5 +21,6 @@ VOLUME /app/src/instance
 
 
 # Run the Flask application when the container launches
-# CMD ["flask", "--app=src/app.py", "run", "--host=0.0.0.0"]
+# CMD ["flask", "--app=src/app.py", "run", "--debug", "--host=0.0.0.0"]
+# CMD ["/usr/local/bin/gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--chdir", "src", "--log-level", "debug", "app:app"]
 CMD ["/usr/local/bin/gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--chdir", "src", "app:app"]
