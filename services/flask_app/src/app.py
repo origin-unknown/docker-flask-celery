@@ -134,6 +134,7 @@ def list_words():
 	]
 	return jsonify(data=words_data, count=words.total)
 
+# Only ignore result if the status should not be requested.
 @shared_task(ignore_result=False)
 def process_file(filename: str, filepath: str):
 	with open(filepath) as f: 
