@@ -110,7 +110,7 @@ def list_words():
 	start_row = request.args.get('start', 0, type=int)
 	end_row = request.args.get('end', 100, type=int)
 	sort_field = request.args.get('sortField')
-	sort_order = request.args.get('sortOrder')
+	sort_order = request.args.get('sortOrder', 'asc')
 
 	stmt = db.select(Word)
 
