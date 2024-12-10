@@ -99,8 +99,7 @@ def allowed_file(filename):
 def status(task_id):
 	result = AsyncResult(task_id)
 	if result.ready() and not result.successful():
-		# str(task.info)
-		return jsonify(error='Something went wrong!'), 400
+		return jsonify(error=str(result.info)), 400
 	return jsonify(
 		meta={ 'ready': result.ready() }, 
 		value=result.result if result.ready() else None
@@ -140,7 +139,7 @@ def process_file(filename: str, filepath: str):
 	with open(filepath) as f: 
 		content = f.read()
 		tokens = content.split()
-
+	
 	words = [Word(
 			token=token, 
 			filepath=filepath, 
@@ -169,6 +168,12 @@ def task_status(task_id):
 			'state': task.state, 
 			'current': task.info.get('current', 0), 
 			'total': task.info.get('total', 1), 
+		}
+	elif task.state == 'PENDING':
+		response = {
+			'state': task.state, 
+			'current': 0, 
+			'total': 1, 
 		}
 	elif task.state != 'FAILURE':
 		response = {
